@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Emotion Modifier</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="container">
+        <h2>Music Emotion Modifier</h2>
+        
+        <label for="audioUpload">Upload an Audio File:</label>
+        <input type="file" id="audioUpload" accept=".wav, .mp3, .mid">
+        
+        <label for="emotionSelect">Select Emotion:</label>
+        <select id="emotionSelect">
+          <option value="happy">😃 Happy</option>
+          <option value="angry">😡 Angry</option>
+          <option value="sad">😢 Sad</option>
+          <option value="calm">😌 Calm</option>
+        </select>
+
+        <button onclick="processFile()">Submit</button>
+
+        <p id="status"></p>
+    </div>
+
+    <script>
+        function processFile() {
+            const fileInput = document.getElementById("audioUpload");
+            const emotionSelect = document.getElementById("emotionSelect").value;
+            const status = document.getElementById("status");
+
+            if (!fileInput.files.length) {
+                status.textContent = "Please upload an audio file.";
+                status.style.color = "red";
+                return;
+            }
+
+            status.textContent = `Processing file for emotion: ${emotionSelect}`;
+            status.style.color = "green";
+        }
+    </script>
+
+</body>
+</html>
