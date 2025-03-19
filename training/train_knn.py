@@ -13,7 +13,9 @@ def parse_feature(feature_str):
     return np.array([float(x) for x in feature_str.strip("[]").split()])
 
 # Load dataset (assuming it's provided in a CSV or similar format)
-df = pd.read_csv("../midi_features_with_label.csv")  # Replace with actual file path
+# df1 = pd.read_csv("./training/midi_features_with_label.csv")  # Replace with actual file path
+df = pd.read_csv("./training/features_with_quadrants.csv")
+# df = pd.concat([df1, df2])
 
 # Convert feature columns from string to numerical arrays
 df['mfcc_mean'] = df['mfcc_mean'].apply(parse_feature)
