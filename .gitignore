@@ -1,0 +1,12 @@
+__pycache__/
+
+# Project Temp
+temp/
+stems_output/
+*.pth
+
+# PyCharm
+.idea/
+
+# Virtualenv
+.venv*/
