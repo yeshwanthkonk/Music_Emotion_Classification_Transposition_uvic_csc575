@@ -123,7 +123,7 @@
       <option value="😌 Calm">😌 Calm</option>
     </select>  
 
-    <button onclick="processFile()">Detect and Transform</button>
+    <button id="transformBtn">Detect and Transform</button>
 
     <div class="spinner" id="spinner"></div>
 
@@ -132,7 +132,7 @@
     <div class="emotion-display" id="emotionDisplay">
       <div class="emotion-block">
         <div id="initialEmoji">😃</div>
-        <div class="emotion-label" id="initialLabel">Detected: Happy</div>
+        <div class="emotion-label" id="initialLabel">Detected: happy</div>
       </div>
       <div class="emotion-block">
         <div id="targetEmoji">😃</div>
@@ -144,75 +144,84 @@
   </div>
 
   <script>
-  function processFile() {
-    const fileInput = document.getElementById("audioUpload");
-    const emotionSelect = document.getElementById("emotionSelect").value;
-    const status = document.getElementById("status");
-    const emotionDisplay = document.getElementById("emotionDisplay");
-    const initialEmoji = document.getElementById("initialEmoji");
-    const initialLabel = document.getElementById("initialLabel");
-    const targetEmoji = document.getElementById("targetEmoji");
-    const targetLabel = document.getElementById("targetLabel");
-    const audioPlayer = document.getElementById("audioPlayer");
-    const spinner = document.getElementById("spinner");
+    document.getElementById("transformBtn").addEventListener("click", processFile);
 
-    if (!fileInput.files.length) {
-      status.textContent = "Please upload an audio file.";
-      status.style.color = "#ff6b6b";
-      return;
+    function processFile(event) {
+      event.preventDefault(); // ✅ Stop the refresh
+
+      const fileInput = document.getElementById("audioUpload");
+      const emotionSelect = document.getElementById("emotionSelect").value;
+      const status = document.getElementById("status");
+      const emotionDisplay = document.getElementById("emotionDisplay");
+      const initialEmoji = document.getElementById("initialEmoji");
+      const initialLabel = document.getElementById("initialLabel");
+      const targetEmoji = document.getElementById("targetEmoji");
+      const targetLabel = document.getElementById("targetLabel");
+      const audioPlayer = document.getElementById("audioPlayer");
+      const spinner = document.getElementById("spinner");
+
+      if (!fileInput.files.length) {
+        status.textContent = "Please upload an audio file.";
+        status.style.color = "#ff6b6b";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      formData.append("target_emotion", emotionSelect.split(" ")[1].toLowerCase());
+
+      spinner.style.display = "block";
+      status.textContent = "Sending request to emotion transformation API...";
+
+      fetch("http://127.0.0.1:5000/api/transform", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        spinner.style.display = "none";
+
+        if (data.error) {
+          status.textContent = data.error;
+          status.style.color = "#ff6b6b";
+          return;
+        }
+
+        const emojiMap = {
+          happy: "😃",
+          sad: "😢",
+          angry: "😡",
+          calm: "😌",
+        };
+
+        const detected = data.detected_emotion.toLowerCase();
+        const target = emotionSelect.split(" ")[1].toLowerCase();
+
+        initialEmoji.textContent = emojiMap[detected] || "🙂";
+        initialLabel.textContent = "Detected: " + capitalize(detected);
+
+        targetEmoji.textContent = emotionSelect.split(" ")[0];
+        targetLabel.textContent = "Target: " + capitalize(target);
+
+        audioPlayer.src = data.file_url;
+        audioPlayer.style.display = "block";
+        audioPlayer.load();
+
+        emotionDisplay.style.display = "flex";
+        status.textContent = `Detected "${detected}". Transformed to "${target}".`;
+        status.style.color = "#50fa7b";
+      })
+      .catch(error => {
+        spinner.style.display = "none";
+        status.textContent = "Error: " + error;
+        status.style.color = "#ff6b6b";
+      });
     }
 
-    const formData = new FormData();
-    formData.append("file", fileInput.files[0]);
-    formData.append("target_emotion", emotionSelect.split(" ")[1].toLowerCase());
-
-    // Show spinner
-    spinner.style.display = "block";
-    status.textContent = "Analyzing audio...";
-
-    // Simulate API call
-    setTimeout(() => {
-      // Dummy response (you could replace this with a real fetch() if you had a backend)
-      const fakeApiResponse = {
-        detected_emotion: "angry", // simulate server-side detection
-        file_url: URL.createObjectURL(fileInput.files[0]) // in reality, this would be a processed audio file URL
-      };
-
-      spinner.style.display = "none";
-
-      // Emojis based on detected emotion
-      const emojiMap = {
-        happy: "😃",
-        sad: "😢",
-        angry: "😡",
-        calm: "😌",
-      };
-
-      const detectedEmotion = fakeApiResponse.detected_emotion;
-      const targetEmotion = emotionSelect.split(" ")[1].toLowerCase();
-
-      // Update UI
-      initialEmoji.textContent = emojiMap[detectedEmotion] || "🙂";
-      initialLabel.textContent = "Detected: " + capitalize(detectedEmotion);
-
-      targetEmoji.textContent = emotionSelect.split(" ")[0];
-      targetLabel.textContent = "Target: " + capitalize(targetEmotion);
-
-      audioPlayer.src = fakeApiResponse.file_url;
-      audioPlayer.style.display = "block";
-      audioPlayer.load();
-
-      emotionDisplay.style.display = "flex";
-
-      status.textContent = `API returned "${detectedEmotion}" as the detected emotion. Transformation to "${targetEmotion}" complete.`;
-      status.style.color = "#50fa7b";
-    }, 5000);
-  }
-
-  function capitalize(word) {
-    return word.charAt(0).toUpperCase() + word.slice(1);
-  }
-</script>
+    function capitalize(word) {
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+  </script>
 
 </body>
 </html>
