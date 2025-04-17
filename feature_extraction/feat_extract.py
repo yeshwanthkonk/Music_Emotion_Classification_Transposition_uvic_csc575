@@ -16,3 +16,19 @@ def extract_features(wav_path):
     loudness_variation = np.std(y)
 
     return mfcc_mean, chroma_mean, spectral_contrast_mean, tempo, loudness_variation
+
+
+def prepare_features_for_prediction(mfcc_mean, chroma_mean, spectral_contrast_mean, tempo_tuple, loudness_variation):
+    # Unpack scalar tempo from tuple
+    tempo_scalar = float(tempo_tuple[0][0]) if isinstance(tempo_tuple, tuple) else float(tempo_tuple)
+
+    # Flatten all components
+    flat_features = np.hstack([
+        mfcc_mean.astype(np.float32),                 # (20,)
+        chroma_mean.astype(np.float32),               # (12,)
+        spectral_contrast_mean.astype(np.float32),    # (7,)
+        [tempo_scalar, loudness_variation]            # (2,)
+    ])
+
+    assert flat_features.shape == (41,), f"Expected shape (41,), got {flat_features.shape}"
+    return flat_features

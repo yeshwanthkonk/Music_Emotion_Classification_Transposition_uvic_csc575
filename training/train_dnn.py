@@ -122,142 +122,148 @@ class LSTM_EmotionClassifier(nn.Module):
         x = self.fc2(x)
         return x
 
+def generate_plots(all_labels, all_preds, all_outputs, train_losses):
+    conf_matrix = confusion_matrix(all_labels, all_preds)
 
-# Initialize model
-input_size = X_train.shape[2]  # Feature dimension
-hidden_size = 128
-num_classes = len(set(y_train))
-print(f"input_size:{input_size}, hidden_size:{hidden_size}, num_classes:{num_classes}")
-model = LSTM_EmotionClassifier(input_size, hidden_size, num_classes).to(device)
+    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title("Confusion Matrix - LSTM")
+    plt.savefig("lstm_confusion_matrix.png")
 
-# Define loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(model.parameters(), lr=0.01, weight_decay=1e-4)
+    print(classification_report(all_labels, all_preds))
 
-# Learning Rate Scheduler
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=5, factor=0.5, verbose=True)
+    report_dict = classification_report(all_labels, all_preds, output_dict=True)
+    report_df = pd.DataFrame(report_dict).transpose().drop(index=['accuracy', 'macro avg', 'weighted avg'])
 
-# Training Loop
-num_epochs = 35
-train_losses = []
+    # Precision, Recall
+    plt.figure(figsize=(8, 4))
+    sns.lineplot(data=report_df[["precision", "recall"]])
+    plt.title("Precision and Recall - LSTM")
+    plt.xlabel("Class")
+    plt.ylabel("Score")
+    plt.savefig("lstm_precision_recall.png")
+    plt.close()
 
-for epoch in range(num_epochs):
-    model.train()
-    total_loss = 0
+    # F1-Score
+    plt.figure(figsize=(8, 4))
+    sns.lineplot(data=report_df["f1-score"])
+    plt.title("F1-Score - LSTM")
+    plt.xlabel("Class")
+    plt.ylabel("F1")
+    plt.savefig("lstm_f1_score.png")
+    plt.close()
 
-    for inputs, labels in train_loader:
-        inputs, labels = inputs.to(device), labels.to(device)  # Move data to GPU if available
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
+    # Loss Curve
+    plt.figure(figsize=(8, 4))
+    plt.plot(train_losses, marker='o')
+    plt.title("Training Loss Curve - LSTM")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.grid(True)
+    plt.savefig("lstm_loss_curve.png")
+    plt.close()
 
-    avg_loss = total_loss / len(train_loader)
-    train_losses.append(avg_loss)
-    print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss / len(train_loader):.4f}")
 
-# Evaluation
-model.eval()
-correct = 0
-total = 0
-all_preds = []
-all_labels = []
-all_outputs = []
+    from sklearn.preprocessing import label_binarize
+    from sklearn.metrics import roc_curve, auc, roc_auc_score
 
-with torch.no_grad():
-    for inputs, labels in test_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        probs = torch.softmax(outputs, dim=1)
-        _, predicted = torch.max(outputs, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
+    # Binarize the ground truth for multiclass ROC
+    y_true = np.array(all_labels)
+    y_score = np.array(all_outputs)
+    n_classes = y_score.shape[1]
 
-        # Accumulate predictions and labels
-        all_preds.extend(predicted.cpu().numpy())
-        all_labels.extend(labels.cpu().numpy())
-        all_outputs.extend(outputs.cpu().numpy())
+    # Binarize labels: shape = (n_samples, n_classes)
+    y_true_bin = label_binarize(y_true, classes=list(range(n_classes)))
 
-accuracy = correct / total
-print(f"Test Accuracy: {accuracy:.4f}")
+    # Compute ROC curve and AUC for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
 
-conf_matrix = confusion_matrix(all_labels, all_preds)
+    plt.figure(figsize=(10, 7))
 
-sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues")
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-plt.title("Confusion Matrix - LSTM")
-plt.savefig("lstm_confusion_matrix.png")
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_score[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+        plt.plot(fpr[i], tpr[i], label=f'Class {i} (AUC = {roc_auc[i]:.2f})')
 
-print(classification_report(all_labels, all_preds))
+    # Diagonal line for reference
+    plt.plot([0, 1], [0, 1], 'k--')
 
-report_dict = classification_report(all_labels, all_preds, output_dict=True)
-report_df = pd.DataFrame(report_dict).transpose().drop(index=['accuracy', 'macro avg', 'weighted avg'])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curves for Each Class (LSTM)')
+    plt.legend(loc='lower right')
+    plt.grid(True)
+    plt.savefig("lstm_roc_curve.png")
+    plt.close()
 
-# Precision, Recall
-plt.figure(figsize=(8, 4))
-sns.lineplot(data=report_df[["precision", "recall"]])
-plt.title("Precision and Recall - LSTM")
-plt.xlabel("Class")
-plt.ylabel("Score")
-plt.savefig("lstm_precision_recall.png")
-plt.close()
+def train_dnn():
+    # Initialize model
+    input_size = X_train.shape[2]  # Feature dimension
+    hidden_size = 128
+    num_classes = len(set(y_train))
+    print(f"input_size:{input_size}, hidden_size:{hidden_size}, num_classes:{num_classes}")
+    model = LSTM_EmotionClassifier(input_size, hidden_size, num_classes).to(device)
 
-# F1-Score
-plt.figure(figsize=(8, 4))
-sns.lineplot(data=report_df["f1-score"])
-plt.title("F1-Score - LSTM")
-plt.xlabel("Class")
-plt.ylabel("F1")
-plt.savefig("lstm_f1_score.png")
-plt.close()
+    # Define loss function and optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.AdamW(model.parameters(), lr=0.01, weight_decay=1e-4)
 
-#Loss Curve
-plt.figure(figsize=(8, 4))
-plt.plot(train_losses, marker='o')
-plt.title("Training Loss Curve - LSTM")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.grid(True)
-plt.savefig("lstm_loss_curve.png")
-plt.close()
+    # Learning Rate Scheduler
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=5, factor=0.5, verbose=True)
 
-# print("Saving model weights...")
-# torch.save(model.state_dict(), 'emotion_model_weights.pth')
+    # Training Loop
+    num_epochs = 35
+    train_losses = []
 
-from sklearn.preprocessing import label_binarize
-from sklearn.metrics import roc_curve, auc, roc_auc_score
+    for epoch in range(num_epochs):
+        model.train()
+        total_loss = 0
 
-# Binarize the ground truth for multiclass ROC
-y_true = np.array(all_labels)
-y_score = np.array(all_outputs)
-n_classes = y_score.shape[1]
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)  # Move data to GPU if available
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
 
-# Binarize labels: shape = (n_samples, n_classes)
-y_true_bin = label_binarize(y_true, classes=list(range(n_classes)))
+        avg_loss = total_loss / len(train_loader)
+        train_losses.append(avg_loss)
+        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss / len(train_loader):.4f}")
 
-# Compute ROC curve and AUC for each class
-fpr = dict()
-tpr = dict()
-roc_auc = dict()
+    # Evaluation
+    model.eval()
+    correct = 0
+    total = 0
+    all_preds = []
+    all_labels = []
+    all_outputs = []
 
-plt.figure(figsize=(10, 7))
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            probs = torch.softmax(outputs, dim=1)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
 
-for i in range(n_classes):
-    fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_score[:, i])
-    roc_auc[i] = auc(fpr[i], tpr[i])
-    plt.plot(fpr[i], tpr[i], label=f'Class {i} (AUC = {roc_auc[i]:.2f})')
+            # Accumulate predictions and labels
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+            all_outputs.extend(outputs.cpu().numpy())
 
-# Diagonal line for reference
-plt.plot([0, 1], [0, 1], 'k--')
+    accuracy = correct / total
+    print(f"Test Accuracy: {accuracy:.4f}")
 
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('ROC Curves for Each Class (LSTM)')
-plt.legend(loc='lower right')
-plt.grid(True)
-plt.savefig("lstm_roc_curve.png")
-plt.close()
+    # print("Saving model weights...")
+    # torch.save(model.state_dict(), './pretrained_models/emotion_model_weights.pth')
+
+    # generate_plots(all_labels, all_preds, all_outputs, train_losses)
+
+# train_dnn()
 

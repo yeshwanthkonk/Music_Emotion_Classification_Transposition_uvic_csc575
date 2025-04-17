@@ -6,6 +6,9 @@ from spleeter.separator import Separator
 from pydub import AudioSegment
 
 import multiprocessing
+
+from transposition.key_trans_main import conversion
+
 if __name__ == "__main__":
     multiprocessing.freeze_support()
 
@@ -79,18 +82,35 @@ new_instrument = os.path.join(temp_directory, "new_instrument.wav")
 final_music = os.path.join(temp_directory, "final_output.mp3")
 
 # === === RUN EVERYTHING === ===
-if __name__ == "__main__":
-    # everything from this point should be indented under this
-    mp3_input = os.path.join(input_folder, "1000.mp3")
-    soundfont = os.path.join(input_folder, "FluidR3_GM.sf2")  # Download and provide the path here
+# if __name__ == "__main__":
+#     # everything from this point should be indented under this
+#     mp3_input = os.path.join(input_folder, "1000.mp3")
+#     soundfont = os.path.join(input_folder, "FluidR3_GM.sf2")  # Download and provide the path here
+#
+#     stem_path = split_stems(mp3_input)
+#     vocals = os.path.join(stem_path, "vocals.wav")
+#     accompaniment = os.path.join(stem_path, "accompaniment.wav")
+#
+#     convert_to_midi(accompaniment, original_mid)
+#     transpose_midi(original_mid, transformed_mid, semitones=-3)
+#     rendered_wav = render_midi_to_wav(transformed_mid, new_instrument, soundfont)
+#     mix_tracks(vocals, rendered_wav, final_music)
+#
+#     print("✅ Emotionally transformed MP3 saved as: final_output.mp3")
+
+
+soundfont = os.path.join(input_folder, "FluidR3_GM.sf2")
+
+def transpose(mp3_input, predicted_emotion, target_emotion):
+      # Download and provide the path here
 
     stem_path = split_stems(mp3_input)
     vocals = os.path.join(stem_path, "vocals.wav")
     accompaniment = os.path.join(stem_path, "accompaniment.wav")
 
     convert_to_midi(accompaniment, original_mid)
-    transpose_midi(original_mid, transformed_mid, semitones=-3)
+    conversion(original_mid, predicted_emotion, target_emotion, transformed_mid)
     rendered_wav = render_midi_to_wav(transformed_mid, new_instrument, soundfont)
     mix_tracks(vocals, rendered_wav, final_music)
-
     print("✅ Emotionally transformed MP3 saved as: final_output.mp3")
+    return final_music

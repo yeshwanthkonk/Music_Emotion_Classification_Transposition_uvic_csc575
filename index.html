@@ -170,43 +170,48 @@
     spinner.style.display = "block";
     status.textContent = "Analyzing audio...";
 
-    // Simulate API call
-    setTimeout(() => {
-      // Dummy response (you could replace this with a real fetch() if you had a backend)
-      const fakeApiResponse = {
-        detected_emotion: "angry", // simulate server-side detection
-        file_url: URL.createObjectURL(fileInput.files[0]) // in reality, this would be a processed audio file URL
-      };
+        // Simulate API call
+        // Real API call
+        fetch("http://localhost:8000/process/", {
+  method: "POST",
+  body: formData
+})
+.then(async (response) => {
+  const data = await response.json();
+  spinner.style.display = "none";
 
-      spinner.style.display = "none";
+  const emojiMap = {
+    happy: "😃", sad: "😢", angry: "😡", calm: "😌"
+  };
 
-      // Emojis based on detected emotion
-      const emojiMap = {
-        happy: "😃",
-        sad: "😢",
-        angry: "😡",
-        calm: "😌",
-      };
+  const detectedEmotion = (data.detected_emotion || data.emotion).toLowerCase();
+  const targetEmotion = emotionSelect.split(" ")[1].toLowerCase();
 
-      const detectedEmotion = fakeApiResponse.detected_emotion;
-      const targetEmotion = emotionSelect.split(" ")[1].toLowerCase();
+  initialEmoji.textContent = emojiMap[detectedEmotion] || "🎵";
+  initialLabel.textContent = "Detected: " + capitalize(detectedEmotion);
 
-      // Update UI
-      initialEmoji.textContent = emojiMap[detectedEmotion] || "🙂";
-      initialLabel.textContent = "Detected: " + capitalize(detectedEmotion);
+  targetEmoji.textContent = emotionSelect.split(" ")[0];
+  targetLabel.textContent = "Target: " + capitalize(targetEmotion);
 
-      targetEmoji.textContent = emotionSelect.split(" ")[0];
-      targetLabel.textContent = "Target: " + capitalize(targetEmotion);
+  emotionDisplay.style.display = "flex";
 
-      audioPlayer.src = fakeApiResponse.file_url;
-      audioPlayer.style.display = "block";
-      audioPlayer.load();
+  if (data.file_url) {
+    audioPlayer.src = "http://localhost:8000" + data.file_url;
+    audioPlayer.style.display = "block";
+    audioPlayer.load();
+  }
 
-      emotionDisplay.style.display = "flex";
+  status.textContent = `Transformation from "${detectedEmotion}" to "${targetEmotion}" complete.`;
+  status.style.color = "#50fa7b";
+})
+.catch((err) => {
+  spinner.style.display = "none";
+  status.textContent = "Error: " + err.message;
+  status.style.color = "#ff6b6b";
+});
 
-      status.textContent = `API returned "${detectedEmotion}" as the detected emotion. Transformation to "${targetEmotion}" complete.`;
-      status.style.color = "#50fa7b";
-    }, 5000);
+
+
   }
 
   function capitalize(word) {
